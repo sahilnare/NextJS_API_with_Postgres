@@ -2,50 +2,47 @@
 import argon2 from 'argon2';
 import { StatusCodes } from 'http-status-codes';
 import UnAuthenticatedError from '../errors/unAuthenticated';
+import BadRequestError from '../errors/badRequest';
 import query from '../lib/dbConnect';
 
 
-const login = async (req, res) => {
+export const login = async (req, res) => {
 
-	try {
+	const { username, password } = req.body;
+	console.log(username, password);
 
-		const { username, email, password } = req.body;
-		console.log(username, email, password);
+	if (!username || !password) {
 
-		res.status(StatusCodes.CREATED).json({ success: true });
-		
-	} catch (error) {
+		throw new BadRequestError('Please provide email and password');
 
-		console.log(error);
-		throw new UnAuthenticatedError('Invalid credentials');
-		
+	}
+
+	if (await argon2.verify(password, password)) {
+
+		res.status(StatusCodes.CREATED).json({ data: { username } });
+
+	} else {
+
+		throw new UnAuthenticatedError('Username or password is incorrect');
+
 	}
 
 };
 
 
-const register = async (req, res) => {
+export const register = async (req, res) => {
 
-	try {
 
-		const { username, email, password } = req.body;
+	const { username, email, password } = req.body;
 
-		const hashedPassword = await argon2.hash(password);
-		console.log(hashedPassword);
+	const hashedPassword = await argon2.hash(password);
+	console.log(hashedPassword);
 
-		const { rows } = await query('INSERT INTO users (user_name, user_email, user_password) VALUES($1, $2, $3) RETURNING *', [username, email, hashedPassword]);
+	const { rows } = await query('INSERT INTO users (user_name, user_email, user_password) VALUES($1, $2, $3) RETURNING *', [username, email, hashedPassword]);
 
-		// const token = user.createJWT();
-		res.status(StatusCodes.CREATED).json({ user: rows });
-		
-	} catch (error) {
-
-		console.log(error);
-		throw new UnAuthenticatedError('Invalid credentials');
-		
-	}
+	// const token = user.createJWT();
+	res.status(StatusCodes.CREATED).json({ user: rows });
 
 };
 
 
-export default register;
